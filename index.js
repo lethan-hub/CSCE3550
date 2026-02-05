@@ -7,13 +7,13 @@ app.use(express.json());
 
 let keys = [];
 
-// Requirement 2.2: Helper to convert Buffer/Number to Base64URL for JWKS compliance
+// Base64URL is used with the assistance of JWKS as it encodes the characters to ensure information is safe over the internet
 const toBase64Url = (input) => {
     let buffer;
     if (Buffer.isBuffer(input)) {
         buffer = input;
     } else if (typeof input === 'number') {
-        // Essential: Convert exponent numbers to a hex buffer to ensure proper JWKS encoding
+        // Converts exponent numbers to a hex buffer to ensure encoding is complete throughout the process
         let hex = input.toString(16);
         if (hex.length % 2 !== 0) hex = '0' + hex;
         buffer = Buffer.from(hex, 'hex');
@@ -23,16 +23,15 @@ const toBase64Url = (input) => {
     return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 };
 
-/**
- * Requirement 1.1: RSA Key Generation
- * Requirement 1.2: Associate unique kid and expiry timestamp
- */
+ // This is used for the RSA Key Generation and it provides a unique kid(which is an ID) and a expiration date
+ 
 function generateKey(isExpired = false) {
+    // Generates a 2048 RSA key pair
     const key = new NodeRSA({ b: 2048 });
     const components = key.exportKey('components');
     const kid = Math.random().toString(36).substring(7);
     
-    // Set expiry based on current time
+    // Set an expiration time
     const expiresAt = isExpired 
         ? Math.floor(Date.now() / 1000) - 3600 
         : Math.floor(Date.now() / 1000) + 3600;
@@ -48,14 +47,11 @@ function generateKey(isExpired = false) {
     return keyPair;
 }
 
-// Pre-generate initial valid and expired keys for testing
+// Used for testing
 generateKey(false);
 generateKey(true);
 
-/**
- * Requirement 2.2: RESTful JWKS endpoint
- * Only serves unexpired keys
- */
+// JWKS is used to be used publicly and only obtains keys that expire in the future
 app.get('/.well-known/jwks.json', (req, res) => {
     const validKeys = keys
         .filter(k => k.expiresAt > Math.floor(Date.now() / 1000))
@@ -70,7 +66,7 @@ app.get('/.well-known/jwks.json', (req, res) => {
     res.json({ keys: validKeys });
 });
 
-// Also support /jwks for backward compatibility
+// It allows jwks to work with older versions
 app.get('/jwks', (req, res) => {
     const validKeys = keys
         .filter(k => k.expiresAt > Math.floor(Date.now() / 1000))
@@ -85,15 +81,12 @@ app.get('/jwks', (req, res) => {
     res.json({ keys: validKeys });
 });
 
-/**
- * Requirement 2.3: /auth endpoint
- * Handles ?expired=true query parameter to issue JWTs with expired keys
- */
+// This the /auth section that allows the JSON Web Token to make sure the POST request is passed
 app.post('/auth', (req, res) => {
     const expiredRequested = req.query.expired === 'true';
     const now = Math.floor(Date.now() / 1000);
     
-    // Select the appropriate key pair based on the query parameter
+    // Select the appropriate key pair based on if it is expired or not
     const keyPair = expiredRequested 
         ? keys.find(k => k.expiresAt < now)
         : keys.find(k => k.expiresAt > now);
@@ -102,14 +95,14 @@ app.post('/auth', (req, res) => {
         return res.status(404).send('Key not found');
     }
 
-    // Use manual payload to ensure 'exp' is definitely in the past for expired requests
+    // Check if the date is actually expired
     const payload = {
         user: 'username',
         iat: now,
         exp: expiredRequested ? now - 3600 : now + 3600
     };
 
-    // Sign JWT and include kid in header for identification
+    // Creation of JWT to provide a unique ID for identitication
     const token = jwt.sign(payload, keyPair.privateKey, {
         algorithm: 'RS256',
         header: { kid: keyPair.kid }
@@ -118,7 +111,7 @@ app.post('/auth', (req, res) => {
     res.json({ token: token });
 });
 
-// Handle other HTTP methods on /auth with 405
+// Handle other HTTP methods
 app.get('/auth', (req, res) => {
     res.status(405).send('Method Not Allowed');
 });
@@ -144,4 +137,5 @@ if (require.main === module) {
     app.listen(PORT, () => {
         console.log(`JWKS Server running at http://localhost:${PORT}`);
     });
+
 }
