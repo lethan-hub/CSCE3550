@@ -7,7 +7,7 @@ app.use(express.json());
 
 let keys = [];
 
-// Base64URL is used with the assistance of JWKS as it encodes the characters to ensure information is safe over the internet
+// Base64URL is used with JWKS as it converts the characters to ensure information is safe over the internet
 const toBase64Url = (input) => {
     let buffer;
     if (Buffer.isBuffer(input)) {
@@ -139,3 +139,4 @@ if (require.main === module) {
     });
 
 }
+
