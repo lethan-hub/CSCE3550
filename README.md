@@ -1,6 +1,8 @@
 # Description
 A RESTFUL JWKS serves that provides public keys with unique identifiers for verifying JWTS with expirations.
 
+# Project 2 Description
+For the addition to project 1, in project 2, we used SQLite to store information instead of using the in-memory storage in the JSON server. For this, the SQLite database stores the information more securely in the totally_not_my_privateKeys.db file.
 
 
 # AI Usage Paragraph
