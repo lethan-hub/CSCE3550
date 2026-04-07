@@ -3,12 +3,11 @@ const jwt = require('jsonwebtoken');
 const NodeRSA = require('node-rsa');
 const sqlite3 = require('sqlite3').verbose(); // Requirement: sqlite3
 
-// Initializes the Express application
 const app = express();
 app.use(express.json());
 
-
-// Creates the SQLite database 
+// 1. DATABASE SETUP
+// Requirement: Create/open a SQLite DB file named 'totally_not_my_privateKeys.db'
 const db = new sqlite3.Database('./totally_not_my_privateKeys.db');
 
 // Requirement: Define the table schema
