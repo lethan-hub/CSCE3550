@@ -12,15 +12,16 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from argon2 import PasswordHasher
 
-# --- ENVIRONMENT SETUP ---
-# Use pathlib to find the .env file in the same directory as this script
+
+
+# This using pathlib to find the .env file that is in my directory to use that file
 basedir = Path(__file__).resolve().parent
 load_dotenv(os.path.join(basedir, ".env"))
 
 NOT_MY_KEY = os.getenv("NOT_MY_KEY")
 
-# Safety Check: If .env is missing or NOT_MY_KEY isn't set, provide a fallback
-# so the .encode() method doesn't crash the server.
+
+# This checks if that .env file is missing or not and if it is then it will provide a messaage
 if NOT_MY_KEY is None:
     print(f"--- WARNING: NOT_MY_KEY not found in {basedir}/.env ---")
     print("--- Using a temporary fallback key for development ---")
@@ -30,11 +31,11 @@ if NOT_MY_KEY is None:
 app = Flask(__name__)
 DB_NAME = "totally_not_my_private_keys.db"
 
-# --- UTILITY FUNCTIONS ---
+
 
 def encrypt_key(private_key_text):
-    # Ensure the key is exactly 32 bytes for AESGCM if needed, 
-    # but for now, we'll encode the string directly.
+    # Ensure the key is exactly 32 bytes
+   
     aad_key = NOT_MY_KEY.encode()
     aesgcm = AESGCM(aad_key)
     iv = os.urandom(12) 
@@ -89,7 +90,7 @@ def seed_one_key():
         conn.commit()
     conn.close()
 
-# --- ROUTES ---
+# Routes to provide the HTTPs Methods
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -115,7 +116,7 @@ def register():
         
     return jsonify({"password": password}), 201
 
-import jwt  # Make sure this is at the top of your app.py
+import jwt  
 
 @app.route('/auth', methods=['POST'])
 def auth():
@@ -139,11 +140,11 @@ def auth():
     except Exception:
         return jsonify({"error": "Invalid credentials"}), 401
 
-    # Log the auth request
+    # Provides the authentication request
     cursor.execute("INSERT INTO auth_logs (request_ip, user_id) VALUES (?, ?)", (request_ip, user_id))
     conn.commit()
 
-    # Get an active key from the DB
+    # Obtains the active key
     cursor.execute("SELECT key, iv, id FROM keys WHERE exp > strftime('%s', 'now') LIMIT 1")
     key_data = cursor.fetchone()
     if not key_data:
@@ -151,11 +152,11 @@ def auth():
         return jsonify({"error": "No active key found"}), 500
     
     encrypted_key, iv, key_id = key_data
-    # Decrypt the private key PEM string
+    # Decrypts the private key
     decrypted_private_pem = decrypt_key(iv, encrypted_key)
     conn.close()
 
-    # --- THE FIX: GENERATE A REAL SIGNED JWT ---
+    
     headers = {
         "kid": str(key_id)
     }
@@ -165,10 +166,11 @@ def auth():
         "exp": int(time.time()) + 3600
     }
     
-    # Sign the token using the RSA Private Key
+    
+    # Signs the token that it is using for the private key
     token = jwt.encode(payload, decrypted_private_pem, algorithm="RS256", headers=headers)
     
-    # If jwt.encode returns bytes (older versions), decode to string
+    # This decodes the string
     if isinstance(token, bytes):
         token = token.decode('utf-8')
 
